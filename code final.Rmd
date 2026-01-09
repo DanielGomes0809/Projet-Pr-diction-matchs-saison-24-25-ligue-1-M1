@@ -16,10 +16,8 @@ library(tidyr)
 library(tidyverse)
 library(lubridate)
 library(dplyr)
-library(gridExtra)
 library(readr)
 library(stringr)
-library(broom)
 library(slider)
 library(nnet)
 library(shiny)
@@ -965,4 +963,5 @@ server <- function(input, output, session) {
 
 ```{r}
 shinyApp(ui, server)
+
 ```
