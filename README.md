@@ -763,7 +763,7 @@ unknown
 
 ### (ii) Matchs futurs (post trêve)
 Ici nous identifions les matchs futurs de la saison 2025–2026 joués après la trêve hivernale.
-Il filtre les rencontres sans résultat connu (FTR manquant), conserve uniquement les informations essentielles (date et équipes) et crée un identifiant unique de match (fixture_id).
+On filtre les rencontres sans résultat connu (FTR manquant), conserve uniquement les informations essentielles (date et équipes) et crée un identifiant unique de match (fixture_id).
 La table obtenue constitue la base des matchs à prédire dans les étapes suivantes.
 
 ```{r}
