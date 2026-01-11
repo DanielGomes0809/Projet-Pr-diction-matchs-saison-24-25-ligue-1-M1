@@ -1,0 +1,382 @@
+---
+title: "Prédire les probabilités des résultats de match de football de Ligue 1"
+author: HAVAN Marius - HAYOTTE Emil - GOMES-ALMEIDA Daniel
+output: 
+  powerpoint_presentation:
+    reference_doc: Template_Ligue1.pptx
+date: "2026-01-09"
+---
+
+```{r setup, include=FALSE}
+setwd("C:/Users/Daniel/OneDrive/MPE/Analyse de donnée")
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## Sommaire
+
+-   Introduction
+
+1)  Nettoyage des données
+2)  Introduction générale
+
+## Sommaire
+
+-   Phase 1 : Entraînement (apprentissage) sur les données des saisons 2021-2022, 2022-2023 et 2023-2024 réalisé notamment grâce à la création de features.
+
+1)  Création des nouvelles variables
+2)  Forme récente des équipes
+3)  Points cumulés par équipe
+4)  Différentiels de buts
+
+## Sommaire
+
+-   Phase 2 : Évaluation du modèle entraîné sur la saison 2024–2025
+
+1)  Choix du modèle multinomiale
+2)  Évaluation des performances du modèle
+
+-   Phase 3 : Prédiction des probabilités sur la saison 2025-2026.
+
+1)  Génération des probabilités de victoire
+2)  Analyse et interprétation
+
+## Sommaire
+
+-   Conclusion
+
+1)Les limites et forces de notre code
+
+## Introduction
+
+-   Variables natives à la base de données :
+
+1)  *FTR* : Résultat d'un match
+2)  *HomeTeam* : Nom de l'équipe à domicile
+3)  *AwayTeam* : Nom de l'équipe extérieur
+4)  *Date* : Date du match
+
+Grâce à cela nous allons pouvoir créer trois variables décisives pour la suite...
+
+## Introduction
+
+-   Premières features :
+
+1)  *home_points* : Point(s) gagné(s) par l'équipe à domicile à la fin du match
+2)  *away_points* : Point(s) gagné(s) par l'équipe extérieur à la fin du match
+3)  *match_id* : Identifiant chronologique du match
+
+Ces variables seront déterminantes pour définir les features principales.
+
+## Introduction
+
+-   Features principales :
+
+1)  *form_diff_lastN* : Différence de forme récente entre les deux équipes au match i.
+
+2)  *cum_pts_diff* : Différence des points cumulés entre les deux équipes au match i.
+
+3)  *cum_gd_diff* : Différence des buts cumulés (buts marqués - buts encaissés) entre les deux équipes au match i.
+
+## Introduction
+
+Après cela, nous nous attarderons sur la performance d'une modélisation par apprentissage statistique, grâce à l'entraînement de nos features sur les trois saisons précédentes, en l'évaluant sur la saison 2024-2025.
+
+A l'aide d'un modèle multinomial on va déterminer la précision de ce dernier à prédire les probabilités d'issues d'un match de football.
+
+## Introduction
+
+Enfin, on va essayé de prédire les résultats de match, du moins leurs probabilités, pour les matchs à venir sur la saison actuelle 2025-2026 (matchs d'après trêve).
+
+On concluera ensuite quant aux résultats de notre modèle tout en énoncant ses différentes limites.
+
+## Apprentissage du modèle : Forme récente
+
+On a créé grâce aux variables natives nos features *home_points*, *away_points* et *match_id*. Ainsi, on va pouvoir calculer la forme récente de chaque équipe.
+
+La forme récente représente la moyenne des points de chaque équipe sur les N derniers matchs (dans notre cas : N = 5). Ainsi, on va prendre les 5 derniers matchs de notre équipe et calculer notre statistique d'avant match.
+
+## Apprentissage du modèle : Forme récente
+
+```{r, eval=FALSE, echo=TRUE}
+team_form <- team_matches %>%
+  group_by(team) %>%
+  mutate(
+    form_pts_lastN = slide_dbl(
+      .x = lag(points),
+      .f = mean(.x, na.rm = TRUE),
+      .before = N - 1,
+      .complete = FALSE
+    ))
+```
+
+## Apprentissage du modèle : Forme récente
+
+Après avoir attribué cette nouvelle fonction à chaque équipe pour chaque match, on calcul la différence entre les deux équipes qui va nous donner la feature finale pour cette sous partie à savoir *form_diff_lastN*.
+
+Elle représente donc la différence de forme récente entre les deux équipes au match i.
+
+## Apprentissage du modèle : Points cumulés
+
+On va donc procéder au calcul des points cumulés par équipe et par saison. L'objectif est de calculer pour chaque équipe le total de points cumulés avant chaque match et la différence de points cumulés puis faire une jointure dans la base de données.
+
+## Apprentissage du modèle : Points cumulés
+
+```{r, eval=FALSE, echo=TRUE}
+team_cum_pts <- team_points %>%
+  group_by(team, season) %>%                                                    
+  mutate(
+    cum_pts_before = lag(cumsum(points), 
+                         default = 0)                           
+                                                                               
+   ) 
+```
+
+## Apprentissage du modèle : Points cumulés
+
+Comme pour la forme récente on applique *cum_pts_before* par équipe et par match ce qui nous permet d'obtenir les points cumulés de l'équipe à domicile avant le match *home_cum_points*.
+
+On a la même chose pour l'équipe extérieur avec *away_cum_points*.
+
+Une nouvelle fois, on calcul la différence ce qui nous donne *cum_pts_diff*.
+
+## Apprentissage du modèle : Différentiel de buts
+
+L'objectif de cette sous-partie est de calculer pour chaque équipe et chaque saison le cumul de buts marqués/encaissés avant chaque match mais également de rattacher ces cumuls au match et créer des variables de comparaison entre les deux équipes qui s'affrontent pour un match donné.
+
+## Apprentissage du modèle : Différentiel de buts
+
+```{r, eval=FALSE, echo=TRUE}
+mutate(
+ cum_gf_including = cumsum(goals_for),                                       
+ cum_ga_including = cumsum(goals_against),                                   
+ cum_gf_before = lag(cum_gf_including,
+                     default = 0),                         
+ cum_ga_before = lag(cum_ga_including,
+                     default = 0),                         
+ cum_gd_before = cum_gf_before - cum_ga_before) 
+```
+
+## Apprentissage du modèle : Différentiel de buts
+
+Encore une fois on applique *cum_gd_before* pour chaque match et équipe et ensuite on calcul la différence.
+
+Ce qui nous donne *cum_gd_diff* qui représente la différence des buts cumulés entre les deux équipes avant de jouer le match par saison.
+
+## Choix du modèle multinomiale
+
+🎯 Objectif du Modèle Multinomial:
+
+- Estimation des différentes issues possibles d'un match à partir de variables explicatives 
+
+Variable dépendante : Résultat final (*FTR* : Home, Draw, Away).
+
+Variables explicatives :
+
+📈 Forme récente (*form_diff_lastN*)
+
+🏆 Points cumulés (*cum_pts_diff*)
+
+⚽ Différentiel de buts (*cum_gd_diff*) 
+
+## Choix du modèle multinomiale
+
+Le choix de la régression multinomiale repose sur deux piliers :
+
+1. Nature de la variable à expliquer : Variable qualitative à 3 modalités.
+      - Absence d'ordre naturel entre Victoire, Nul et Défaite
+
+2. Interprétabilité : Modèle permettant de comprendre facilement comment chaque variable influence les probabilités
+
+## Évaluation des performances du modèle
+
+⚙️ Entrainement du modèle :
+
+```{r, eval=FALSE, echo=TRUE}
+model_multinom <- multinom(
+  FTR ~ form_diff_lastN + cum_pts_diff + cum_gd_diff,
+  data = train_data, trace = FALSE)
+```
+
+Application du modèle à la saison 24/25 en se basant uniquement sur les saisons 21/22 à 23/24 (*train_data*)
+
+## Évaluation des performances du modèle
+
+Résultats:
+
+- Bonne prédiction des victoires à domicile, mais difficulté pour les vitoires à l'extérieur
+
+- Matchs nuls rarement prédits : forte incertitude, car dépendance d'évenements difficiles à anticiper
+
+- Accuracy de 54% : modèle capte une partie des dynamiques de performance des équipes, mais montre aussi caractère aléatoire du football
+
+
+## Phase 3 : Prédiction des probabilités sur la saison 2025–2026
+
+1) Génération des probabilités de victoire pour les matchs déjà joués de la saison 25/26
+
+2) Génération des probabilités de victoire pour les matchs futurs de la saison 25/26 
+
+
+## 1) Génération des probabilités de victoire pour les matchs déjà joués de la saison 25/26
+
+
+::: {.columns}
+
+::: {.column width="60%"}
+### Objectif
+Utiliser le modèle multinomial entraîné sur les saisons 2021–2022 à 2023–2024 et évaluer sur la saison 2024–2025, afin de prédire les probabilités pour tous les matches de la saison 2025–2026.
+:::
+
+::: {.column width="40%"}
+### Prédiction
+- Victoire à domicile (H)
+- Match nul (D)
+- Victoire à l’extérieur (A)
+:::
+
+:::
+
+## Point de Vigilance 
+
+Faire attention qu'aucune information issue des résultats de la saison 2025–2026 n’est utilisée dans l’apprentissage du modèle, garantissant l’absence totale de fuite temporelle ou de bias. 
+
+## ` `
+
+::: {.columns}
+
+::: {.column width="50%"}
+### (i) Construction de l'échantillon
+**Saison 2025–2026**
+
+* **Nettoyage** : Exclusion des premiers matches de la saison.
+* **Raison** : Historique insuffisant pour calculer les variables de "forme récente".
+:::
+
+::: {.column width="50%"}
+### (ii) Application du modèle
+**Prédiction des probabilités**
+
+* Utilisation du modèle **multinomial** pré-entraîné.
+* Application directe sur les nouvelles observations de la saison actuelle.
+:::
+
+:::
+
+---
+
+## ` `
+
+### (iii) Intégration des probabilités
+
+L'objectif est d'enrichir la base `pred_2526_out` avec les scores de probabilités et d'identifier le résultat le plus probable (**Argmax**)
+
+## (iv) Illustration : matches très déséquilibrés vs matches très incertains
+**Les Matches les plus déséquilibrés :**
+Opposition d'une équipe en forte dynamique faec à une équipe en difficulté
+```{r}
+top10_pred_des <- readRDS("top10_pred_des.rds")
+```
+
+```{r, echo=FALSE}
+knitr::kable(top10_pred_des)
+```
+
+## ` `
+**Les matches les plus incertains :**
+Opposition d'équipes proches en termes de performance, des débuts de saison ou des confrontations historiquement équilibrées
+```{r}
+top10_pred_inc <- readRDS("top10_pred_inc.rds")
+```
+
+```{r, echo=FALSE}
+knitr::kable(top10_pred_inc)
+```
+
+## 2) Génération des probabilités de victoire pour les matchs futurs de la saison 25/26 
+**(i) Ajout des rencontres non disponibles (Base 25/26)**
+
+- La base de donnée de la saison 25/26 contient uniquement les matchs qui ont déjà été joués.
+- Il faut ajouter les matchs restants de la saison 25/26
+
+## ` `
+**Exemple: Ajout de la journée 33**
+
+```{r, eval=FALSE, echo=TRUE}
+fixtures_33 <- tribble(
+  ~Round, ~Date,        ~HomeTeam,     ~AwayTeam,
+  33, "2026-05-09", "Angers",      "Strasbourg",
+  33, "2026-05-09", "Auxerre",     "Nice",
+  "etc")
+```
+Nous allons ensuite pouvoir fixer toutes ces journées suplémentaires à la base de donnée
+via *bind_rows*
+
+## (ii) Matchs futurs (post trêve)
+
+- Identification des matchs futurs joués après la trêve hivernale 
+- Filtre les rencontres sans résultat connu (*FTR* manquant)
+- Conserve uniquement les informations essentielles (date et équipes)
+
+## (iii) Historique des matchs joués et transformation en équipe-match
+
+- Extrait de l’historique des matchs déjà joués 
+- Transformation en une table équipe–match 
+- Pour chaque rencontre, on calcule les points obtenus et la différence de buts
+- On obtient la table finale *team_games* qui constitue la base nécessaire au calcul des cumuls 
+  et de la forme récente des équipes
+
+## (iv) Features par équipe avant chaque match
+
+- Obtient la table finale *team_state* qui synthétise l’état de forme 
+  et de performance de chaque équipe à chaque date
+  
+## (v) Rolling join
+
+- Utilisation d'un rolling join temporel *foverlaps* pour récupérer, 
+  par équipe et par saison, les features calculées 
+  lors du dernier match joué précédant chaque fixture
+  
+## (vi) Construction table finale des features *future_feat* et différentiels des features
+
+- Construction de la table finale des features pour les matchs futurs 
+- On calcule ensuite les différentiels domicile – extérieur pour les trois variables retenues:
+Forme récente, points cumulés, différence de buts cumulée 
+- On conserve uniquement les matchs pour lesquels toutes les features sont disponibles
+
+## Prédictions et Table Finale
+
+::: {.columns}
+
+::: {.column width="50%"}
+### (vii) Prédiction H/D/A
+- Application du modèle multinomial entraîné pour prédire les résultats H/D/A 
+  des matchs futurs pour lesquels les features sont disponibles
+:::
+
+::: {.column width="50%"}
+### (viii) Table finale
+- Construction de la table finale des prédictions pour les matchs futurs
+:::
+
+:::
+
+## V) Aperçu de l'Interface de Prédiction
+
+
+![](Image Interface.png){width="90%"}
+
+## Conclusion : ⚠️ Limites
+
+- Utilisation uniquement de données de match agrégées et pas de variables contextuelles comme les blessures ou les suspensions
+
+- **Difficulté à prédire les matchs nuls** : statistiquement moins fréquents et beaucoup plus hétéorgènes
+
+- Régression multinomiale ne capture pas les interactions complexes entre les variables explicatives => modèles plus flexibles comme les réseaux de neurones
+
+## Conclusion : 💪 Forces
+
+- **Absence de fuite temporelle** : utilisation que d'informations disponibles au moment de la prédiction
+
+- Variables explicatives résument efficacement l'information disponible avant le match qui permet au modèle d'intégrer à la fois l'état de forme actuel et la qualité moyenne de l'équipe sur la saison
+
+- **Modélisation dynamique de la saison** : probabilités prédites évoluent au fil des journées
