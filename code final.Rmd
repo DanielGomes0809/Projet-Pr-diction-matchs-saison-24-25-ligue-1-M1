@@ -405,7 +405,7 @@ Ici Matches les plus déséquilibrés :
 top10_pred_des <- pred_2526_out %>%
   arrange(desc(p_max)) %>%
   select(Date, HomeTeam, AwayTeam, proba_H, proba_D, proba_A, p_max) %>%
-  head(10)
+  head(5)
 saveRDS(top10_pred_des, "top10_pred_des.rds")
 knitr::kable(top10_pred_des)
 ```
@@ -969,3 +969,4 @@ server <- function(input, output, session) {
 shinyApp(ui, server)
 
 ```
+
