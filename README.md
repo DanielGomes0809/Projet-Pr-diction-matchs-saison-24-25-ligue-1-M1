@@ -1,4 +1,5 @@
 # Projet-Prédiction-matchs-saison-24-25-ligue-1-M1
+Marius Havan - Emil Hayotte - Daniel Gomes Almeida
 ### Packages utilisés
 ```{r}
 library(tidyr)
